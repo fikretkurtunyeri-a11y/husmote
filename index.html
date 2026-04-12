@@ -211,6 +211,19 @@
       background: var(--bg); border-radius: var(--rs); border: 1px solid var(--border);
       padding: .65rem .75rem; margin-bottom: .5rem;
     }
+    /* ===== Videreført badge stil ===== */
+    .task-form-item.viderefort-item {
+      border-color: var(--accent);
+      background: #fffbeb;
+    }
+    .viderefort-badge {
+      display: inline-flex; align-items: center; gap: .3rem;
+      background: var(--accent-bg); color: #92400E;
+      border-radius: 20px; padding: .18rem .65rem;
+      font-size: .72rem; font-weight: 700;
+      margin-bottom: .45rem;
+    }
+    /* ================================= */
     .task-form-row1 { display: flex; align-items: center; gap: .4rem; margin-bottom: .4rem; }
     .task-form-row1 select { flex: 0 0 110px; }
     .task-form-row1 input[type=text] { flex: 1; }
@@ -416,8 +429,8 @@
 <div id="app-screen" class="screen">
 
   <header class="app-header">
-    <button class="btn btn-ghost btn-icon" id="back-btn" onclick="goBack()" style="display:none">←</button>
-    <div class="hdr-title" id="hdr-title">🏠 Familiemøte</div>
+    <button class="btn btn-ghost btn-icon" id="back-btn" onclick="goBack()" style="display:none">&#8592;</button>
+    <div class="hdr-title" id="hdr-title">&#127968; Familiemøte</div>
     <div class="hdr-actions">
       <button class="btn btn-ghost btn-sm" onclick="doLogout()">Logg ut</button>
     </div>
@@ -482,7 +495,7 @@
       </div>
 
       <div style="display:flex;flex-wrap:wrap;gap:.75rem;margin-top:.5rem">
-        <button class="btn btn-primary" style="flex:1;min-width:160px" onclick="saveReferat()">💾 Lagre referat</button>
+        <button class="btn btn-primary" style="flex:1;min-width:160px" onclick="saveReferat()">&#128190; Lagre referat</button>
         <button class="btn btn-sec" style="min-width:90px" onclick="showList()">Avbryt</button>
       </div>
     </div>
@@ -493,7 +506,7 @@
 
   </div>
 
-  <button class="fab" id="fab" onclick="showNew()">＋</button>
+  <button class="fab" id="fab" onclick="showNew()">&#65291;</button>
 
 </div>
 
@@ -510,22 +523,32 @@ const FIREBASE_CONFIG = {
 const PASSORD = "flekken";
 
 const STD_DELTAKERE = ["Fikret", "Lise", "Elif"];
-const EXT_DELTAKERE = ["Pernille", "Çağatay"];
+const EXT_DELTAKERE = ["Pernille", "\u00c7a\u011fatay"];
+
+// ===== NYTT: Person til e-post mapping =====
+const PERSON_EPOST = {
+  "Fikret":   "fkrtkrt@hotmail.com",
+  "Lise":     "lise.kjolstad@gmail.com",
+  "Elif":     "4lifkrt2000@gmail.com",
+  "\u00c7a\u011fatay":  "fallenlight983@gmail.com",
+  "Pernille": "pernille.tora@gmail.com"
+};
+// ==========================================
 
 const STANDARD_DAGSORDEN = [
   "Godkjenning av forrige referat",
   "Avtaler for kommende uke",
   "Andre beskjeder",
   "Felles aktivitet",
-  "Innkjøp",
+  "Innkj\u00f8p",
   "Eventuelt"
 ];
 
 const STATUSER = {
-  ikke_startet: { label: "Ikke startet", cls: "status-ikke_startet", ikon: "⬜" },
-  pagaar:       { label: "Pågår",        cls: "status-pagaar",       ikon: "🔄" },
-  fullfort:     { label: "Fullført",     cls: "status-fullfort",     ikon: "✅" },
-  avbrutt:      { label: "Avbrutt",      cls: "status-avbrutt",      ikon: "❌" }
+  ikke_startet: { label: "Ikke startet", cls: "status-ikke_startet", ikon: "\u2b1c" },
+  pagaar:       { label: "P\u00e5g\u00e5r",        cls: "status-pagaar",       ikon: "\ud83d\udd04" },
+  fullfort:     { label: "Fullf\u00f8rt",     cls: "status-fullfort",     ikon: "\u2705" },
+  avbrutt:      { label: "Avbrutt",      cls: "status-avbrutt",      ikon: "\u274c" }
 };
 
 function getISOWeek(dateStr) {
@@ -579,7 +602,7 @@ function showList() {
   show('view-list');
   show('fab');
   document.getElementById('back-btn').style.display = 'none';
-  document.getElementById('hdr-title').textContent = '🏠 Familiemøte';
+  document.getElementById('hdr-title').textContent = '\ud83c\udfe0 Familiem\u00f8te';
   viewStack = ['list'];
 }
 
@@ -621,7 +644,7 @@ function show(id) {
   if (el) el.style.display = '';
 }
 
-const IS_CONFIGURED = FIREBASE_CONFIG.apiKey !== "DIN_API_NØKKEL";
+const IS_CONFIGURED = FIREBASE_CONFIG.apiKey !== "DIN_API_N\u00d8KKEL";
 let db = null;
 if (IS_CONFIGURED) {
   firebase.initializeApp(FIREBASE_CONFIG);
@@ -651,26 +674,20 @@ function renderList() {
   document.getElementById('r-count').textContent = allData.length + ' referater';
 
   if (!allData.length) {
-    el.innerHTML = `<div class="empty"><div class="icon">📋</div><h3>Ingen referater ennå</h3><p>Trykk + for å opprette det første referatet.</p></div>`;
+    el.innerHTML = '<div class="empty"><div class="icon">\ud83d\udccb</div><h3>Ingen referater enn\u00e5</h3><p>Trykk + for \u00e5 opprette det f\u00f8rste referatet.</p></div>';
     return;
   }
 
-  el.innerHTML = allData.map(r => `
-    <div class="r-card" onclick="showDetailView('${r.id}')">
-      <div class="r-card-top">
-        <div>
-          <div class="r-card-title">${esc(r.konu || '—')}</div>
-          <div class="r-card-meta">
-            <span>👤 ${esc(r.olusturan || '')}</span>
-            ${r.katilimcilar?.length ? `<span>👥 ${r.katilimcilar.length} deltakere</span>` : ''}
-            ${r.gundem?.length ? `<span>📌 ${r.gundem.length} saker</span>` : ''}
-            ${r.yorumlar?.length ? `<span>💬 ${r.yorumlar.length}</span>` : ''}
-          </div>
-        </div>
-        <div class="date-badge">${fmtDate(r.tarih)}</div>
-      </div>
-    </div>
-  `).join('');
+  el.innerHTML = allData.map(r => {
+    const katMeta = r.katilimcilar && r.katilimcilar.length ? '<span>\ud83d\udc65 ' + r.katilimcilar.length + ' deltakere</span>' : '';
+    const gunMeta = r.gundem && r.gundem.length ? '<span>\ud83d\udccc ' + r.gundem.length + ' saker</span>' : '';
+    const yorMeta = r.yorumlar && r.yorumlar.length ? '<span>\ud83d\udcac ' + r.yorumlar.length + '</span>' : '';
+    return '<div class="r-card" onclick="showDetailView(\'' + r.id + '\')">' +
+      '<div class="r-card-top"><div>' +
+      '<div class="r-card-title">' + esc(r.konu || '\u2014') + '</div>' +
+      '<div class="r-card-meta"><span>\ud83d\udc64 ' + esc(r.olusturan || '') + '</span>' + katMeta + gunMeta + yorMeta + '</div>' +
+      '</div><div class="date-badge">' + fmtDate(r.tarih) + '</div></div></div>';
+  }).join('');
 }
 
 function initNewForm() {
@@ -691,19 +708,17 @@ function initNewForm() {
 
   const sel = document.getElementById('f-olusturan');
   const alle = [...STD_DELTAKERE, ...EXT_DELTAKERE];
-  sel.innerHTML = alle.map(m => `<option value="${m}">${m}</option>`).join('');
+  sel.innerHTML = alle.map(m => '<option value="' + escAttr(m) + '">' + esc(m) + '</option>').join('');
 
   const stdEl = document.getElementById('f-std-deltakere');
-  stdEl.innerHTML = STD_DELTAKERE.map(m => `
-    <label class="cb-chip checked">
-      <input type="checkbox" value="${m}" checked>${m}
-    </label>`).join('');
+  stdEl.innerHTML = STD_DELTAKERE.map(m =>
+    '<label class="cb-chip checked"><input type="checkbox" value="' + escAttr(m) + '" checked>' + esc(m) + '</label>'
+  ).join('');
 
   const extEl = document.getElementById('f-ext-deltakere');
-  extEl.innerHTML = EXT_DELTAKERE.map(m => `
-    <label class="cb-chip">
-      <input type="checkbox" value="${m}">${m}
-    </label>`).join('');
+  extEl.innerHTML = EXT_DELTAKERE.map(m =>
+    '<label class="cb-chip"><input type="checkbox" value="' + escAttr(m) + '">' + esc(m) + '</label>'
+  ).join('');
 
   [...stdEl.querySelectorAll('.cb-chip'), ...extEl.querySelectorAll('.cb-chip')].forEach(chip => {
     chip.querySelector('input').addEventListener('change', function() {
@@ -717,12 +732,76 @@ function initNewForm() {
   STANDARD_DAGSORDEN.forEach(tekst => addGundem(tekst));
 
   document.getElementById('f-gorev-list').innerHTML = '';
+
+  // ===== NYTT: Hent aapne oppgaver fra forrige referat =====
+  loadForrigeGorevler();
+  // =========================================================
 }
+
+// ===== NYTT: Henter ikke_startet/pagaar oppgaver fra siste referat =====
+function loadForrigeGorevler() {
+  if (!allData || !allData.length) return;
+  // allData er sortert desc etter tarih fra Firestore
+  const forrige = allData[0];
+  if (!forrige) return;
+  const gorevler = forrige.gorevler || [];
+  const aapne = gorevler.filter(function(g) {
+    return g.status === 'ikke_startet' || g.status === 'pagaar';
+  });
+  if (!aapne.length) return;
+  aapne.forEach(function(g) {
+    addGorevViderefort(g, forrige.id, forrige.konu, forrige.tarih);
+  });
+}
+
+// ===== NYTT: Legger til en viderefort oppgave i skjemaet =====
+function addGorevViderefort(g, referatId, referatKonu, referatTarih) {
+  const list = document.getElementById('f-gorev-list');
+  const alle = [...STD_DELTAKERE, ...EXT_DELTAKERE];
+  const div = document.createElement('div');
+  div.className = 'task-form-item viderefort-item';
+  div.dataset.viderefort = 'true';
+  div.dataset.viderefortFraReferatId = referatId || '';
+  div.dataset.viderefortFraKonu = referatKonu || '';
+  div.dataset.viderefortFraTarih = referatTarih || '';
+
+  const kisiOptions = alle.map(function(m) {
+    return '<option value="' + escAttr(m) + '"' + (g.kisi === m ? ' selected' : '') + '>' + esc(m) + '</option>';
+  }).join('');
+
+  const statusOptions = [
+    ['ikke_startet', '\u2b1c Ikke startet'],
+    ['pagaar', '\ud83d\udd04 P\u00e5g\u00e5r'],
+    ['fullfort', '\u2705 Fullf\u00f8rt'],
+    ['avbrutt', '\u274c Avbrutt']
+  ].map(function(s) {
+    return '<option value="' + s[0] + '"' + (g.status === s[0] ? ' selected' : '') + '>' + s[1] + '</option>';
+  }).join('');
+
+  const kildeTekst = referatKonu ? ': ' + esc(referatKonu) : '';
+
+  div.innerHTML =
+    '<div class="viderefort-badge">\ud83d\udccb Videref\u00f8rt fra forrige referat' + kildeTekst + '</div>' +
+    '<div class="task-form-row1">' +
+    '<select>' + kisiOptions + '</select>' +
+    '<input type="text" placeholder="Oppgavebeskrivelse..." value="' + escAttr(g.gorev || '') + '">' +
+    '<input type="date" value="' + escAttr(g.son_tarih || '') + '">' +
+    '<button type="button" class="rm-btn" onclick="this.closest(\'.task-form-item\').remove()">\u00d7</button>' +
+    '</div>' +
+    '<div class="task-form-row2">' +
+    '<select>' + statusOptions + '</select>' +
+    '<input type="text" placeholder="Notater til oppgaven (valgfritt)..." value="' + escAttr(g.notater || '') + '">' +
+    '</div>';
+
+  list.appendChild(div);
+}
+// =============================================================
 
 let _gundemCounter = 0;
 let draggedGundemEl = null;
 
-function addGundem(tekst = '') {
+function addGundem(tekst) {
+  tekst = tekst || '';
   _gundemCounter++;
   const id = 'ag-' + _gundemCounter;
   const list = document.getElementById('f-gundem-list');
@@ -733,17 +812,17 @@ function addGundem(tekst = '') {
   div.dataset.id = id;
   div.draggable = true;
 
-  div.innerHTML = `
-    <div class="ag-form-row">
-      <span class="ag-drag" title="Dra for å flytte">⋮⋮</span>
-      <span class="ag-form-num">${num}</span>
-      <input type="text" placeholder="Dagsordenspunkt..." value="${escAttr(tekst)}" />
-      <button type="button" class="ag-notes-toggle" onclick="toggleAgNotes('${id}')" title="Legg til notater">📝 Notater</button>
-      <button type="button" class="rm-btn" onclick="removeGundem(this)" title="Fjern">×</button>
-    </div>
-    <div class="ag-notes-area" id="notes-${id}">
-      <textarea placeholder="Notater og beslutninger for dette punktet..."></textarea>
-    </div>`;
+  div.innerHTML =
+    '<div class="ag-form-row">' +
+    '<span class="ag-drag" title="Dra for \u00e5 flytte">\u22ee\u22ee</span>' +
+    '<span class="ag-form-num">' + num + '</span>' +
+    '<input type="text" placeholder="Dagsordenspunkt..." value="' + escAttr(tekst) + '" />' +
+    '<button type="button" class="ag-notes-toggle" onclick="toggleAgNotes(\'' + id + '\')" title="Legg til notater">\ud83d\udcdd Notater</button>' +
+    '<button type="button" class="rm-btn" onclick="removeGundem(this)" title="Fjern">\u00d7</button>' +
+    '</div>' +
+    '<div class="ag-notes-area" id="notes-' + id + '">' +
+    '<textarea placeholder="Notater og beslutninger for dette punktet..."></textarea>' +
+    '</div>';
 
   attachDragEvents(div);
   list.appendChild(div);
@@ -751,52 +830,46 @@ function addGundem(tekst = '') {
 }
 
 function attachDragEvents(el) {
-  el.addEventListener('dragstart', () => {
+  el.addEventListener('dragstart', function() {
     draggedGundemEl = el;
     el.classList.add('dragging');
   });
 
-  el.addEventListener('dragend', () => {
+  el.addEventListener('dragend', function() {
     el.classList.remove('dragging');
-    document.querySelectorAll('.ag-form-item').forEach(item => {
+    document.querySelectorAll('.ag-form-item').forEach(function(item) {
       item.classList.remove('drag-over-top', 'drag-over-bottom');
     });
     draggedGundemEl = null;
     renumberGundem();
   });
 
-  el.addEventListener('dragover', e => {
+  el.addEventListener('dragover', function(e) {
     e.preventDefault();
     if (!draggedGundemEl || draggedGundemEl === el) return;
-
     const rect = el.getBoundingClientRect();
     const offset = e.clientY - rect.top;
     const isTop = offset < rect.height / 2;
-
     el.classList.remove('drag-over-top', 'drag-over-bottom');
     el.classList.add(isTop ? 'drag-over-top' : 'drag-over-bottom');
   });
 
-  el.addEventListener('dragleave', () => {
+  el.addEventListener('dragleave', function() {
     el.classList.remove('drag-over-top', 'drag-over-bottom');
   });
 
-  el.addEventListener('drop', e => {
+  el.addEventListener('drop', function(e) {
     e.preventDefault();
     if (!draggedGundemEl || draggedGundemEl === el) return;
-
     const rect = el.getBoundingClientRect();
     const offset = e.clientY - rect.top;
     const isTop = offset < rect.height / 2;
-
     el.classList.remove('drag-over-top', 'drag-over-bottom');
-
     if (isTop) {
       el.parentNode.insertBefore(draggedGundemEl, el);
     } else {
       el.parentNode.insertBefore(draggedGundemEl, el.nextSibling);
     }
-
     renumberGundem();
   });
 }
@@ -813,7 +886,7 @@ function removeGundem(btn) {
 }
 
 function renumberGundem() {
-  document.querySelectorAll('#f-gundem-list .ag-form-item').forEach((el, i) => {
+  document.querySelectorAll('#f-gundem-list .ag-form-item').forEach(function(el, i) {
     const num = el.querySelector('.ag-form-num');
     if (num) num.textContent = i + 1;
   });
@@ -825,22 +898,22 @@ function addGorev() {
   div.className = 'task-form-item';
   const alle = [...STD_DELTAKERE, ...EXT_DELTAKERE];
 
-  div.innerHTML = `
-    <div class="task-form-row1">
-      <select>${alle.map(m => `<option value="${m}">${m}</option>`).join('')}</select>
-      <input type="text" placeholder="Oppgavebeskrivelse...">
-      <input type="date">
-      <button type="button" class="rm-btn" onclick="this.closest('.task-form-item').remove()">×</button>
-    </div>
-    <div class="task-form-row2">
-      <select>
-        <option value="ikke_startet">⬜ Ikke startet</option>
-        <option value="pagaar">🔄 Pågår</option>
-        <option value="fullfort">✅ Fullført</option>
-        <option value="avbrutt">❌ Avbrutt</option>
-      </select>
-      <input type="text" placeholder="Notater til oppgaven (valgfritt)...">
-    </div>`;
+  div.innerHTML =
+    '<div class="task-form-row1">' +
+    '<select>' + alle.map(function(m) { return '<option value="' + escAttr(m) + '">' + esc(m) + '</option>'; }).join('') + '</select>' +
+    '<input type="text" placeholder="Oppgavebeskrivelse...">' +
+    '<input type="date">' +
+    '<button type="button" class="rm-btn" onclick="this.closest(\'.task-form-item\').remove()">\u00d7</button>' +
+    '</div>' +
+    '<div class="task-form-row2">' +
+    '<select>' +
+    '<option value="ikke_startet">\u2b1c Ikke startet</option>' +
+    '<option value="pagaar">\ud83d\udd04 P\u00e5g\u00e5r</option>' +
+    '<option value="fullfort">\u2705 Fullf\u00f8rt</option>' +
+    '<option value="avbrutt">\u274c Avbrutt</option>' +
+    '</select>' +
+    '<input type="text" placeholder="Notater til oppgaven (valgfritt)...">' +
+    '</div>';
 
   list.appendChild(div);
   div.querySelector('input[type=text]').focus();
@@ -856,23 +929,34 @@ async function saveReferat() {
   }
 
   const katilimcilar = [...document.querySelectorAll('#f-std-deltakere input:checked, #f-ext-deltakere input:checked')]
-    .map(c => c.value);
+    .map(function(c) { return c.value; });
 
-  const gundem = [...document.querySelectorAll('#f-gundem-list .ag-form-item')].map(el => ({
-    tekst: el.querySelector('input[type=text]').value.trim(),
-    notater: el.querySelector('textarea').value.trim()
-  })).filter(g => g.tekst);
-
-  const gorevler = [...document.querySelectorAll('#f-gorev-list .task-form-item')].map(el => {
-    const inputs = el.querySelectorAll('input, select');
+  const gundem = [...document.querySelectorAll('#f-gundem-list .ag-form-item')].map(function(el) {
     return {
+      tekst: el.querySelector('input[type=text]').value.trim(),
+      notater: el.querySelector('textarea').value.trim()
+    };
+  }).filter(function(g) { return g.tekst; });
+
+  // ===== ENDRET: Les viderefort-metadata fra data-attributter =====
+  const gorevler = [...document.querySelectorAll('#f-gorev-list .task-form-item')].map(function(el) {
+    const inputs = el.querySelectorAll('input, select');
+    const base = {
       kisi:      inputs[0].value,
       gorev:     inputs[1].value.trim(),
       son_tarih: inputs[2].value,
       status:    inputs[3].value,
       notater:   inputs[4].value.trim()
     };
-  }).filter(g => g.gorev);
+    if (el.dataset.viderefort === 'true') {
+      base.viderefort             = true;
+      base.viderefortFraReferatId = el.dataset.viderefortFraReferatId || '';
+      base.viderefortFraKonu      = el.dataset.viderefortFraKonu || '';
+      base.viderefortFraTarih     = el.dataset.viderefortFraTarih || '';
+    }
+    return base;
+  }).filter(function(g) { return g.gorev; });
+  // ================================================================
 
   const data = {
     konu,
@@ -888,8 +972,18 @@ async function saveReferat() {
 
   loading(true);
   try {
-    await db.collection('referatlar').add(data);
-    toast('✓ Referat lagret!', 'ok');
+    const docRef = await db.collection('referatlar').add(data);
+    toast('\u2713 Referat lagret!', 'ok');
+
+    // ===== NYTT: Skriv e-poster til mail-koleksjon =====
+    try {
+      await sendMailQueue(docRef.id, data);
+    } catch(mailErr) {
+      console.warn('Mail-k\u00f8 feil:', mailErr);
+      // Ikke stopp flyten — referatet er allerede lagret
+    }
+    // ==================================================
+
     showList();
   } catch(e) {
     toast('Feil: ' + e.message, 'err');
@@ -897,6 +991,118 @@ async function saveReferat() {
     loading(false);
   }
 }
+
+// ===== NYTT: Bygg e-post HTML =====
+function buildEmailHtml(data, mottaker, mineGorevler, alleGorevler) {
+  const appUrl = 'https://husmote.firebaseapp.com';
+
+  function statusLabel(s) {
+    var st = STATUSER[s] || STATUSER.ikke_startet;
+    return st.ikon + ' ' + st.label;
+  }
+
+  function gorevRad(g) {
+    var vf = g.viderefort
+      ? '<td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;font-size:11px;color:#92400E;">\ud83d\udccb Fra: ' + esc(g.viderefortFraKonu || '') + '</td>'
+      : '<td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;"></td>';
+    return '<tr>' +
+      '<td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;">' + esc(g.kisi) + '</td>' +
+      '<td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;">' + esc(g.gorev) + '</td>' +
+      '<td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;">' + statusLabel(g.status) + '</td>' +
+      '<td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;">' + (g.son_tarih ? fmtDate(g.son_tarih) : '\u2014') + '</td>' +
+      vf +
+      '</tr>';
+  }
+
+  var thMine = '<thead><tr style="background:#eff6ff;">' +
+    '<th style="padding:7px 10px;text-align:left;font-size:12px;color:#2563eb;">Person</th>' +
+    '<th style="padding:7px 10px;text-align:left;font-size:12px;color:#2563eb;">Oppgave</th>' +
+    '<th style="padding:7px 10px;text-align:left;font-size:12px;color:#2563eb;">Status</th>' +
+    '<th style="padding:7px 10px;text-align:left;font-size:12px;color:#2563eb;">Frist</th>' +
+    '<th style="padding:7px 10px;text-align:left;font-size:12px;color:#2563eb;">Videref\u00f8rt</th>' +
+    '</tr></thead>';
+
+  var mineHtml = mineGorevler.length
+    ? '<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:8px;">' + thMine + '<tbody>' + mineGorevler.map(gorevRad).join('') + '</tbody></table>'
+    : '<p style="color:#64748b;font-style:italic;">Ingen oppgaver tildelt til deg i dette referatet.</p>';
+
+  var thAlle = '<thead><tr style="background:#f1f5f9;">' +
+    '<th style="padding:7px 10px;text-align:left;font-size:12px;color:#64748b;">Person</th>' +
+    '<th style="padding:7px 10px;text-align:left;font-size:12px;color:#64748b;">Oppgave</th>' +
+    '<th style="padding:7px 10px;text-align:left;font-size:12px;color:#64748b;">Status</th>' +
+    '<th style="padding:7px 10px;text-align:left;font-size:12px;color:#64748b;">Frist</th>' +
+    '<th></th></tr></thead>';
+
+  var alleHtml = alleGorevler.length
+    ? '<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:8px;">' + thAlle + '<tbody>' + alleGorevler.map(gorevRad).join('') + '</tbody></table>'
+    : '<p style="color:#64748b;font-style:italic;">Ingen oppgaver i dette referatet.</p>';
+
+  var nextRow = data.sonraki_toplanti
+    ? '<tr><td style="padding:2px 12px 2px 0;color:#64748b;font-size:13px;">\ud83d\udcc5 Neste m\u00f8te:</td><td style="font-size:13px;font-weight:600;">' + fmtDate(data.sonraki_toplanti) + '</td></tr>'
+    : '';
+
+  return '<!DOCTYPE html><html lang="nb"><head><meta charset="UTF-8"/></head>' +
+    '<body style="margin:0;padding:0;background:#f8fafc;font-family:\'Segoe UI\',system-ui,sans-serif;color:#0f172a;">' +
+    '<table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:24px 0;"><tr><td align="center">' +
+    '<table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;max-width:600px;">' +
+
+    '<tr><td style="background:linear-gradient(135deg,#3b82f6,#6366f1);padding:28px 32px;">' +
+    '<div style="font-size:28px;margin-bottom:4px;">\ud83c\udfe0</div>' +
+    '<h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">Familiem\u00f8te</h1>' +
+    '<p style="margin:4px 0 0;color:rgba(255,255,255,.8);font-size:14px;">Referater &amp; Beslutninger</p></td></tr>' +
+
+    '<tr><td style="padding:24px 32px 0;">' +
+    '<h2 style="margin:0 0 8px;font-size:20px;color:#0f172a;">' + esc(data.konu) + '</h2>' +
+    '<table cellpadding="0" cellspacing="0">' +
+    '<tr><td style="padding:2px 12px 2px 0;color:#64748b;font-size:13px;">\ud83d\udcc5 Dato:</td><td style="font-size:13px;font-weight:600;">' + fmtDate(data.tarih) + '</td></tr>' +
+    '<tr><td style="padding:2px 12px 2px 0;color:#64748b;font-size:13px;">\ud83d\udc64 Opprettet av:</td><td style="font-size:13px;font-weight:600;">' + esc(data.olusturan) + '</td></tr>' +
+    '<tr><td style="padding:2px 12px 2px 0;color:#64748b;font-size:13px;">\ud83d\udc65 Deltakere:</td><td style="font-size:13px;font-weight:600;">' + esc((data.katilimcilar || []).join(', ')) + '</td></tr>' +
+    nextRow +
+    '</table></td></tr>' +
+
+    '<tr><td style="padding:20px 32px 0;">' +
+    '<div style="background:#eff6ff;border-radius:8px;padding:16px;">' +
+    '<h3 style="margin:0 0 12px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#2563eb;">' +
+    '\u2705 Dine oppgaver, ' + esc(mottaker) + '</h3>' +
+    mineHtml + '</div></td></tr>' +
+
+    '<tr><td style="padding:20px 32px 0;">' +
+    '<h3 style="margin:0 0 12px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;">' +
+    '\ud83d\udccb Alle oppgaver</h3>' + alleHtml + '</td></tr>' +
+
+    '<tr><td style="padding:24px 32px;text-align:center;">' +
+    '<a href="' + appUrl + '" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:8px;padding:12px 28px;font-weight:600;font-size:15px;">' +
+    '\u00c5pne Familiem\u00f8te-appen \u2192</a></td></tr>' +
+
+    '<tr><td style="padding:16px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;text-align:center;">' +
+    '<p style="margin:0;font-size:12px;color:#94a3b8;">Familiem\u00f8te &middot; Automatisk generert referat-e-post</p></td></tr>' +
+
+    '</table></td></tr></table></body></html>';
+}
+
+// ===== NYTT: Skriv e-poster til Firestore mail-koleksjon =====
+async function sendMailQueue(referatId, data) {
+  var katilimcilar = data.katilimcilar || [];
+  var alleGorevler = data.gorevler || [];
+
+  for (var i = 0; i < katilimcilar.length; i++) {
+    var kisi = katilimcilar[i];
+    var epost = PERSON_EPOST[kisi];
+    if (!epost) continue;
+
+    var mineGorevler = alleGorevler.filter(function(g) { return g.kisi === kisi; });
+    var html = buildEmailHtml(data, kisi, mineGorevler, alleGorevler);
+
+    await db.collection('mail').add({
+      to:      epost,
+      message: {
+        subject: 'Familiem\u00f8te referat: ' + data.konu + ' \u2014 ' + fmtDate(data.tarih),
+        html:    html
+      }
+    });
+  }
+}
+// =============================================================
 
 async function loadDetail(id) {
   loading(true);
@@ -920,136 +1126,122 @@ async function loadDetail(id) {
 function renderDetail(r) {
   const el = document.getElementById('detail-content');
 
-  let h = `
-    <div class="det-head">
-      <div class="det-konu">${esc(r.konu || '—')}</div>
-      <div class="det-meta">
-        ${fmtDate(r.tarih)}
-        ${r.olusturan ? ` · Opprettet av <strong>${esc(r.olusturan)}</strong>` : ''}
-      </div>
-    </div>`;
+  let h =
+    '<div class="det-head">' +
+    '<div class="det-konu">' + esc(r.konu || '\u2014') + '</div>' +
+    '<div class="det-meta">' + fmtDate(r.tarih) +
+    (r.olusturan ? ' \u00b7 Opprettet av <strong>' + esc(r.olusturan) + '</strong>' : '') +
+    '</div></div>';
 
-  if (r.katilimcilar?.length) {
-    h += `<div class="det-sec">
-      <div class="det-sec-title">👥 Deltakere</div>
-      <div class="chips">${r.katilimcilar.map(a => `<span class="chip">${esc(a)}</span>`).join('')}</div>
-    </div>`;
+  if (r.katilimcilar && r.katilimcilar.length) {
+    h += '<div class="det-sec"><div class="det-sec-title">\ud83d\udc65 Deltakere</div>' +
+      '<div class="chips">' + r.katilimcilar.map(function(a) { return '<span class="chip">' + esc(a) + '</span>'; }).join('') + '</div></div>';
   }
 
   const gundem = r.gundem || [];
   const kararlarFallback = r.kararlar || '';
 
   if (gundem.length) {
-    h += `<div class="det-sec"><div class="det-sec-title">📌 Dagsorden</div>`;
-    gundem.forEach((item, i) => {
+    h += '<div class="det-sec"><div class="det-sec-title">\ud83d\udccc Dagsorden</div>';
+    gundem.forEach(function(item, i) {
       const tekst = typeof item === 'string' ? item : (item.tekst || '');
       const notater = typeof item === 'string' ? '' : (item.notater || '');
       const notes = notater || (i === gundem.length - 1 ? kararlarFallback : '');
-
-      h += `
-        <div class="acc-item" id="acc-${r.id}-${i}">
-          <button class="acc-trigger" onclick="toggleAcc('${r.id}',${i})">
-            <span class="acc-num">${i + 1}</span>
-            <span class="acc-label">${esc(tekst)}</span>
-            <span class="acc-arrow">▶</span>
-          </button>
-          <div class="acc-body">
-            ${notes ? `<p>${esc(notes)}</p>` : `<p class="acc-no-notes">Ingen notater for dette punktet.</p>`}
-          </div>
-        </div>`;
+      h += '<div class="acc-item" id="acc-' + r.id + '-' + i + '">' +
+        '<button class="acc-trigger" onclick="toggleAcc(\'' + r.id + '\',' + i + ')">' +
+        '<span class="acc-num">' + (i + 1) + '</span>' +
+        '<span class="acc-label">' + esc(tekst) + '</span>' +
+        '<span class="acc-arrow">\u25b6</span>' +
+        '</button>' +
+        '<div class="acc-body">' +
+        (notes ? '<p>' + esc(notes) + '</p>' : '<p class="acc-no-notes">Ingen notater for dette punktet.</p>') +
+        '</div></div>';
     });
-    h += `</div>`;
+    h += '</div>';
   }
 
   const gorevler = r.gorevler || [];
-  h += `<div class="det-sec"><div class="det-sec-title">📋 Oppgavefordeling</div>`;
+  h += '<div class="det-sec"><div class="det-sec-title">\ud83d\udccb Oppgavefordeling</div>';
 
   if (gorevler.length) {
-    gorevler.forEach((g, i) => {
+    gorevler.forEach(function(g, i) {
       const st = STATUSER[g.status] || STATUSER.ikke_startet;
-      h += `
-        <div class="task-card ${g.status === 'avbrutt' ? 'avbrutt' : ''}">
-          <div class="task-card-row1">
-            <span class="task-who">${esc(g.kisi)}</span>
-            <span class="task-name">${esc(g.gorev)}</span>
-          </div>
-          <div class="task-card-row2">
-            <span class="status-badge ${st.cls}">${st.ikon} ${st.label}</span>
-            ${g.son_tarih ? `<span class="task-due">📅 ${fmtDate(g.son_tarih)}</span>` : ''}
-          </div>
-          ${g.notater ? `<div class="task-notes-text">💬 ${esc(g.notater)}</div>` : ''}
-
-          <div class="task-edit-box">
-            <div class="task-edit-row">
-              <select id="task-status-${i}">
-                <option value="ikke_startet" ${g.status === 'ikke_startet' ? 'selected' : ''}>⬜ Ikke startet</option>
-                <option value="pagaar" ${g.status === 'pagaar' ? 'selected' : ''}>🔄 Pågår</option>
-                <option value="fullfort" ${g.status === 'fullfort' ? 'selected' : ''}>✅ Fullført</option>
-                <option value="avbrutt" ${g.status === 'avbrutt' ? 'selected' : ''}>❌ Avbrutt</option>
-              </select>
-              <button class="btn btn-sec btn-sm" onclick="updateTaskStatus('${r.id}', ${i})">Lagre status</button>
-            </div>
-          </div>
-        </div>`;
+      // ===== NYTT: Vis viderefort-merke i detaljvisning =====
+      const vfMerke = g.viderefort
+        ? '<div style="margin-bottom:.3rem"><span style="background:var(--accent-bg);color:#92400E;border-radius:20px;padding:.15rem .5rem;font-size:.72rem;font-weight:700;">\ud83d\udccb Videref\u00f8rt' + (g.viderefortFraKonu ? ' fra: ' + esc(g.viderefortFraKonu) : ' fra forrige referat') + '</span></div>'
+        : '';
+      // ======================================================
+      h += '<div class="task-card' + (g.status === 'avbrutt' ? ' avbrutt' : '') + '">' +
+        vfMerke +
+        '<div class="task-card-row1">' +
+        '<span class="task-who">' + esc(g.kisi) + '</span>' +
+        '<span class="task-name">' + esc(g.gorev) + '</span>' +
+        '</div>' +
+        '<div class="task-card-row2">' +
+        '<span class="status-badge ' + st.cls + '">' + st.ikon + ' ' + st.label + '</span>' +
+        (g.son_tarih ? '<span class="task-due">\ud83d\udcc5 ' + fmtDate(g.son_tarih) + '</span>' : '') +
+        '</div>' +
+        (g.notater ? '<div class="task-notes-text">\ud83d\udcac ' + esc(g.notater) + '</div>' : '') +
+        '<div class="task-edit-box"><div class="task-edit-row">' +
+        '<select id="task-status-' + i + '">' +
+        '<option value="ikke_startet"' + (g.status === 'ikke_startet' ? ' selected' : '') + '>\u2b1c Ikke startet</option>' +
+        '<option value="pagaar"' + (g.status === 'pagaar' ? ' selected' : '') + '>\ud83d\udd04 P\u00e5g\u00e5r</option>' +
+        '<option value="fullfort"' + (g.status === 'fullfort' ? ' selected' : '') + '>\u2705 Fullf\u00f8rt</option>' +
+        '<option value="avbrutt"' + (g.status === 'avbrutt' ? ' selected' : '') + '>\u274c Avbrutt</option>' +
+        '</select>' +
+        '<button class="btn btn-sec btn-sm" onclick="updateTaskStatus(\'' + r.id + '\', ' + i + ')">Lagre status</button>' +
+        '</div></div></div>';
     });
   } else {
-    h += `<p style="color:var(--muted);font-style:italic;font-size:.875rem">Ingen oppgaver tildelt.</p>`;
+    h += '<p style="color:var(--muted);font-style:italic;font-size:.875rem">Ingen oppgaver tildelt.</p>';
   }
-  h += `</div>`;
+  h += '</div>';
 
   if (r.sonraki_toplanti) {
-    h += `<div class="next-banner">
-      <span class="ni">📅</span>
-      <div>
-        <div style="font-size:.7rem;color:#92400E;margin-bottom:.05rem">Neste møte:</div>
-        <div>${fmtDate(r.sonraki_toplanti)}</div>
-      </div>
-    </div>`;
+    h += '<div class="next-banner"><span class="ni">\ud83d\udcc5</span><div>' +
+      '<div style="font-size:.7rem;color:#92400E;margin-bottom:.05rem">Neste m\u00f8te:</div>' +
+      '<div>' + fmtDate(r.sonraki_toplanti) + '</div></div></div>';
   }
 
-  h += `<div style="text-align:right;margin-bottom:1.25rem">
-    <button class="btn btn-danger btn-sm" onclick="deleteReferat('${r.id}')">🗑 Slett referat</button>
-  </div>`;
+  h += '<div style="text-align:right;margin-bottom:1.25rem">' +
+    '<button class="btn btn-danger btn-sm" onclick="deleteReferat(\'' + r.id + '\')">\ud83d\uddd1 Slett referat</button></div>';
 
   const yorumlar = r.yorumlar || [];
-  h += `<div class="comments-wrap">
-    <h2>💬 Kommentarer</h2>`;
+  h += '<div class="comments-wrap"><h2>\ud83d\udcac Kommentarer</h2>';
 
   if (!yorumlar.length) {
-    h += `<p style="color:var(--muted);font-style:italic;font-size:.875rem;margin-bottom:.75rem">Ingen kommentarer ennå.</p>`;
+    h += '<p style="color:var(--muted);font-style:italic;font-size:.875rem;margin-bottom:.75rem">Ingen kommentarer enn\u00e5.</p>';
   } else {
-    yorumlar.forEach(y => {
-      h += `<div class="com-item">
-        <div class="com-top"><span>👤</span><span class="com-author">${esc(y.yazar)}</span><span class="com-date">${fmtDT(y.tarih)}</span></div>
-        <p class="com-text">${esc(y.metin)}</p>
-      </div>`;
+    yorumlar.forEach(function(y) {
+      h += '<div class="com-item"><div class="com-top"><span>\ud83d\udc64</span>' +
+        '<span class="com-author">' + esc(y.yazar) + '</span>' +
+        '<span class="com-date">' + fmtDT(y.tarih) + '</span></div>' +
+        '<p class="com-text">' + esc(y.metin) + '</p></div>';
     });
   }
 
   const alle = [...STD_DELTAKERE, ...EXT_DELTAKERE];
-  h += `<div class="com-form">
-    <label>Legg til kommentar</label>
-    <div class="com-row">
-      <select id="com-author">${alle.map(m => `<option value="${m}">${m}</option>`).join('')}</select>
-      <textarea id="com-text" placeholder="Skriv din kommentar..."></textarea>
-    </div>
-    <div style="text-align:right;margin-top:.4rem">
-      <button class="btn btn-primary btn-sm" onclick="addComment('${r.id}')">Send ➤</button>
-    </div>
-  </div></div>`;
+  h += '<div class="com-form"><label>Legg til kommentar</label>' +
+    '<div class="com-row">' +
+    '<select id="com-author">' + alle.map(function(m) { return '<option value="' + escAttr(m) + '">' + esc(m) + '</option>'; }).join('') + '</select>' +
+    '<textarea id="com-text" placeholder="Skriv din kommentar..."></textarea>' +
+    '</div>' +
+    '<div style="text-align:right;margin-top:.4rem">' +
+    '<button class="btn btn-primary btn-sm" onclick="addComment(\'' + r.id + '\')">Send \u25ba</button>' +
+    '</div></div></div>';
 
   el.innerHTML = h;
 }
 
 function toggleAcc(rid, i) {
-  const item = document.getElementById(`acc-${rid}-${i}`);
+  const item = document.getElementById('acc-' + rid + '-' + i);
   item.classList.toggle('open');
 }
 
 async function updateTaskStatus(referatId, taskIndex) {
   if (!currentReferat || currentReferat.id !== referatId) return;
 
-  const selectEl = document.getElementById(`task-status-${taskIndex}`);
+  const selectEl = document.getElementById('task-status-' + taskIndex);
   if (!selectEl) return;
 
   const newStatus = selectEl.value;
@@ -1065,7 +1257,7 @@ async function updateTaskStatus(referatId, taskIndex) {
   try {
     await db.collection('referatlar').doc(referatId).update({ gorevler });
     currentReferat.gorevler = gorevler;
-    toast('✓ Status oppdatert!', 'ok');
+    toast('\u2713 Status oppdatert!', 'ok');
     await loadDetail(referatId);
   } catch (e) {
     toast('Feil ved oppdatering', 'err');
@@ -1088,7 +1280,7 @@ async function addComment(id) {
     await db.collection('referatlar').doc(id).update({
       yorumlar: firebase.firestore.FieldValue.arrayUnion(c)
     });
-    toast('✓ Kommentar lagt til!', 'ok');
+    toast('\u2713 Kommentar lagt til!', 'ok');
     loadDetail(id);
   } catch(e) {
     toast('Feil', 'err');
@@ -1098,11 +1290,11 @@ async function addComment(id) {
 }
 
 async function deleteReferat(id) {
-  if (!confirm('Er du sikker på at du vil slette dette referatet?')) return;
+  if (!confirm('Er du sikker p\u00e5 at du vil slette dette referatet?')) return;
   loading(true);
   try {
     await db.collection('referatlar').doc(id).delete();
-    toast('✓ Slettet.', 'ok');
+    toast('\u2713 Slettet.', 'ok');
     showList();
   } catch(e) {
     toast('Feil', 'err');
@@ -1117,7 +1309,7 @@ function fmtDate(s) {
     return new Date(s + 'T12:00:00').toLocaleDateString('nb-NO', {
       day:'numeric', month:'long', year:'numeric'
     });
-  } catch {
+  } catch(e) {
     return s;
   }
 }
@@ -1128,7 +1320,7 @@ function fmtDT(s) {
     return new Date(s).toLocaleDateString('nb-NO', {
       day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'
     });
-  } catch {
+  } catch(e) {
     return '';
   }
 }
@@ -1150,12 +1342,13 @@ function escAttr(s) {
 }
 
 let _tTimer;
-function toast(msg, type='') {
+function toast(msg, type) {
+  type = type || '';
   const el = document.getElementById('toast');
   el.textContent = msg;
-  el.className = `toast show ${type}`;
+  el.className = 'toast show ' + type;
   clearTimeout(_tTimer);
-  _tTimer = setTimeout(() => el.classList.remove('show'), 3000);
+  _tTimer = setTimeout(function() { el.classList.remove('show'); }, 3000);
 }
 
 function loading(on) {
@@ -1164,7 +1357,7 @@ function loading(on) {
 
 function init() {
   if (!IS_CONFIGURED) {
-    alert('Firebase er ikke konfigurert ennå.');
+    alert('Firebase er ikke konfigurert enn\u00e5.');
     return;
   }
   if (sessionStorage.getItem('auth') === '1') showApp();
