@@ -994,90 +994,204 @@ async function saveReferat() {
 
 // ===== NYTT: Bygg e-post HTML =====
 function buildEmailHtml(data, mottaker, mineGorevler, alleGorevler) {
-  const appUrl = 'https://husmote.firebaseapp.com';
+  const appUrl = 'https://fikretkurtunyeri-a11y.github.io/husmote/';
 
-  function statusLabel(s) {
-    var st = STATUSER[s] || STATUSER.ikke_startet;
-    return st.ikon + ' ' + st.label;
+  function statusMeta(status) {
+    const map = {
+      ikke_startet: { label: 'Ikke startet', emoji: '⬜', color: '#64748B', bg: '#F1F5F9' },
+      pagaar:       { label: 'Pågår',        emoji: '🔄', color: '#1D4ED8', bg: '#DBEAFE' },
+      fullfort:     { label: 'Fullført',     emoji: '✅', color: '#059669', bg: '#D1FAE5' },
+      avbrutt:      { label: 'Avbrutt',      emoji: '❌', color: '#DC2626', bg: '#FEE2E2' }
+    };
+    return map[status] || map.ikke_startet;
   }
 
-  function gorevRad(g) {
-    var vf = g.viderefort
-      ? '<td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;font-size:11px;color:#92400E;">\ud83d\udccb Fra: ' + esc(g.viderefortFraKonu || '') + '</td>'
-      : '<td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;"></td>';
-    return '<tr>' +
-      '<td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;">' + esc(g.kisi) + '</td>' +
-      '<td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;">' + esc(g.gorev) + '</td>' +
-      '<td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;">' + statusLabel(g.status) + '</td>' +
-      '<td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;">' + (g.son_tarih ? fmtDate(g.son_tarih) : '\u2014') + '</td>' +
-      vf +
-      '</tr>';
+  function escHtml(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
-  var thMine = '<thead><tr style="background:#eff6ff;">' +
-    '<th style="padding:7px 10px;text-align:left;font-size:12px;color:#2563eb;">Person</th>' +
-    '<th style="padding:7px 10px;text-align:left;font-size:12px;color:#2563eb;">Oppgave</th>' +
-    '<th style="padding:7px 10px;text-align:left;font-size:12px;color:#2563eb;">Status</th>' +
-    '<th style="padding:7px 10px;text-align:left;font-size:12px;color:#2563eb;">Frist</th>' +
-    '<th style="padding:7px 10px;text-align:left;font-size:12px;color:#2563eb;">Videref\u00f8rt</th>' +
-    '</tr></thead>';
+  function fmtShortDate(dateStr) {
+    if (!dateStr) return 'Ingen frist';
+    try {
+      return new Date(dateStr + 'T12:00:00').toLocaleDateString('nb-NO', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+    } catch {
+      return dateStr;
+    }
+  }
 
-  var mineHtml = mineGorevler.length
-    ? '<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:8px;">' + thMine + '<tbody>' + mineGorevler.map(gorevRad).join('') + '</tbody></table>'
-    : '<p style="color:#64748b;font-style:italic;">Ingen oppgaver tildelt til deg i dette referatet.</p>';
+  function taskCard(g, isPersonal) {
+    const st = statusMeta(g.status);
+    const frist = g.son_tarih ? fmtShortDate(g.son_tarih) : 'Ingen frist';
+    const noteHtml = g.notater
+      ? `<div style="margin-top:8px;font-size:13px;line-height:1.5;color:#475569;">
+           <strong>Notat:</strong> ${escHtml(g.notater)}
+         </div>`
+      : '';
 
-  var thAlle = '<thead><tr style="background:#f1f5f9;">' +
-    '<th style="padding:7px 10px;text-align:left;font-size:12px;color:#64748b;">Person</th>' +
-    '<th style="padding:7px 10px;text-align:left;font-size:12px;color:#64748b;">Oppgave</th>' +
-    '<th style="padding:7px 10px;text-align:left;font-size:12px;color:#64748b;">Status</th>' +
-    '<th style="padding:7px 10px;text-align:left;font-size:12px;color:#64748b;">Frist</th>' +
-    '<th></th></tr></thead>';
+    const viderefortHtml = g.viderefort
+      ? `<div style="margin-top:8px;">
+           <span style="display:inline-block;background:#FEF3C7;color:#92400E;font-size:12px;font-weight:700;border-radius:999px;padding:4px 10px;">
+             ↺ Videreført${g.viderefortFraKonu ? ` fra ${escHtml(g.viderefortFraKonu)}` : ''}
+           </span>
+         </div>`
+      : '';
 
-  var alleHtml = alleGorevler.length
-    ? '<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:8px;">' + thAlle + '<tbody>' + alleGorevler.map(gorevRad).join('') + '</tbody></table>'
-    : '<p style="color:#64748b;font-style:italic;">Ingen oppgaver i dette referatet.</p>';
+    const ownerHtml = isPersonal
+      ? ''
+      : `<div style="margin-bottom:8px;font-size:12px;color:#64748B;">
+           <strong>Ansvarlig:</strong> ${escHtml(g.kisi || '—')}
+         </div>`;
 
-  var nextRow = data.sonraki_toplanti
-    ? '<tr><td style="padding:2px 12px 2px 0;color:#64748b;font-size:13px;">\ud83d\udcc5 Neste m\u00f8te:</td><td style="font-size:13px;font-weight:600;">' + fmtDate(data.sonraki_toplanti) + '</td></tr>'
+    return `
+      <div style="background:${isPersonal ? '#FFFFFF' : '#F8FAFC'};border:1px solid #E2E8F0;border-radius:14px;padding:14px 16px;margin-bottom:12px;">
+        ${ownerHtml}
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap;">
+          <div style="flex:1;min-width:220px;">
+            <div style="font-size:15px;font-weight:700;color:#0F172A;line-height:1.4;">
+              ${escHtml(g.gorev || 'Uten navn')}
+            </div>
+          </div>
+          <div>
+            <span style="display:inline-block;background:${st.bg};color:${st.color};font-size:12px;font-weight:700;border-radius:999px;padding:5px 10px;white-space:nowrap;">
+              ${st.emoji} ${st.label}
+            </span>
+          </div>
+        </div>
+
+        <div style="margin-top:10px;font-size:13px;color:#475569;">
+          <strong>Frist:</strong> ${escHtml(frist)}
+        </div>
+
+        ${noteHtml}
+        ${viderefortHtml}
+      </div>
+    `;
+  }
+
+  const mineHtml = mineGorevler.length
+    ? mineGorevler.map(g => taskCard(g, true)).join('')
+    : `
+      <div style="background:#FFFFFF;border:1px dashed #CBD5E1;border-radius:14px;padding:16px;color:#64748B;font-size:14px;">
+        Du har ingen oppgaver i dette referatet.
+      </div>
+    `;
+
+  const alleHtml = alleGorevler.length
+    ? alleGorevler.map(g => taskCard(g, false)).join('')
+    : `
+      <div style="background:#FFFFFF;border:1px dashed #CBD5E1;border-radius:14px;padding:16px;color:#64748B;font-size:14px;">
+        Ingen oppgaver registrert i dette referatet.
+      </div>
+    `;
+
+  const nesteMoteHtml = data.sonraki_toplanti
+    ? `
+      <div style="margin-top:14px;background:#FEF3C7;border:1px solid #FCD34D;border-radius:12px;padding:12px 14px;">
+        <div style="font-size:12px;font-weight:700;color:#92400E;text-transform:uppercase;letter-spacing:.04em;">
+          Neste møte
+        </div>
+        <div style="margin-top:4px;font-size:14px;font-weight:700;color:#78350F;">
+          📅 ${escHtml(fmtShortDate(data.sonraki_toplanti))}
+        </div>
+      </div>
+    `
     : '';
 
-  return '<!DOCTYPE html><html lang="nb"><head><meta charset="UTF-8"/></head>' +
-    '<body style="margin:0;padding:0;background:#f8fafc;font-family:\'Segoe UI\',system-ui,sans-serif;color:#0f172a;">' +
-    '<table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:24px 0;"><tr><td align="center">' +
-    '<table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;max-width:600px;">' +
+  const deltakereHtml = (data.katilimcilar || []).length
+    ? data.katilimcilar.map(navn => `
+        <span style="display:inline-block;background:#EFF6FF;color:#2563EB;font-size:12px;font-weight:700;border-radius:999px;padding:5px 10px;margin:0 6px 6px 0;">
+          ${escHtml(navn)}
+        </span>
+      `).join('')
+    : '<span style="color:#64748B;">Ingen deltakere</span>';
 
-    '<tr><td style="background:linear-gradient(135deg,#3b82f6,#6366f1);padding:28px 32px;">' +
-    '<div style="font-size:28px;margin-bottom:4px;">\ud83c\udfe0</div>' +
-    '<h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">Familiem\u00f8te</h1>' +
-    '<p style="margin:4px 0 0;color:rgba(255,255,255,.8);font-size:14px;">Referater &amp; Beslutninger</p></td></tr>' +
+  return `
+  <!DOCTYPE html>
+  <html lang="nb">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Familiemøte</title>
+  </head>
+  <body style="margin:0;padding:0;background:#F8FAFC;font-family:Segoe UI,Arial,sans-serif;color:#0F172A;">
+    <div style="width:100%;background:#F8FAFC;padding:24px 12px;">
+      <div style="max-width:680px;margin:0 auto;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:20px;overflow:hidden;">
 
-    '<tr><td style="padding:24px 32px 0;">' +
-    '<h2 style="margin:0 0 8px;font-size:20px;color:#0f172a;">' + esc(data.konu) + '</h2>' +
-    '<table cellpadding="0" cellspacing="0">' +
-    '<tr><td style="padding:2px 12px 2px 0;color:#64748b;font-size:13px;">\ud83d\udcc5 Dato:</td><td style="font-size:13px;font-weight:600;">' + fmtDate(data.tarih) + '</td></tr>' +
-    '<tr><td style="padding:2px 12px 2px 0;color:#64748b;font-size:13px;">\ud83d\udc64 Opprettet av:</td><td style="font-size:13px;font-weight:600;">' + esc(data.olusturan) + '</td></tr>' +
-    '<tr><td style="padding:2px 12px 2px 0;color:#64748b;font-size:13px;">\ud83d\udc65 Deltakere:</td><td style="font-size:13px;font-weight:600;">' + esc((data.katilimcilar || []).join(', ')) + '</td></tr>' +
-    nextRow +
-    '</table></td></tr>' +
+        <div style="background:linear-gradient(135deg,#2563EB 0%, #4F46E5 100%);padding:28px 24px;">
+          <div style="font-size:30px;line-height:1;">🏠</div>
+          <div style="margin-top:10px;font-size:26px;font-weight:800;color:#FFFFFF;">
+            Familiemøte
+          </div>
+          <div style="margin-top:6px;font-size:14px;color:rgba(255,255,255,.88);">
+            Referater & beslutninger
+          </div>
+        </div>
 
-    '<tr><td style="padding:20px 32px 0;">' +
-    '<div style="background:#eff6ff;border-radius:8px;padding:16px;">' +
-    '<h3 style="margin:0 0 12px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#2563eb;">' +
-    '\u2705 Dine oppgaver, ' + esc(mottaker) + '</h3>' +
-    mineHtml + '</div></td></tr>' +
+        <div style="padding:24px;">
+          <div style="font-size:13px;font-weight:700;color:#2563EB;text-transform:uppercase;letter-spacing:.05em;">
+            Nytt referat
+          </div>
 
-    '<tr><td style="padding:20px 32px 0;">' +
-    '<h3 style="margin:0 0 12px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;">' +
-    '\ud83d\udccb Alle oppgaver</h3>' + alleHtml + '</td></tr>' +
+          <h1 style="margin:10px 0 8px;font-size:28px;line-height:1.2;color:#0F172A;">
+            ${escHtml(data.konu || 'Uten tittel')}
+          </h1>
 
-    '<tr><td style="padding:24px 32px;text-align:center;">' +
-    '<a href="' + appUrl + '" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:8px;padding:12px 28px;font-weight:600;font-size:15px;">' +
-    '\u00c5pne Familiem\u00f8te-appen \u2192</a></td></tr>' +
+          <p style="margin:0 0 18px;font-size:15px;line-height:1.6;color:#475569;">
+            Hei ${escHtml(mottaker)}. Et nytt familiemøtereferat er opprettet og sendt til deltakerne.
+          </p>
 
-    '<tr><td style="padding:16px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;text-align:center;">' +
-    '<p style="margin:0;font-size:12px;color:#94a3b8;">Familiem\u00f8te &middot; Automatisk generert referat-e-post</p></td></tr>' +
+          <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:16px;padding:16px 18px;">
+            <div style="margin-bottom:8px;font-size:14px;color:#334155;">
+              <strong>📅 Dato:</strong> ${escHtml(fmtShortDate(data.tarih))}
+            </div>
+            <div style="margin-bottom:8px;font-size:14px;color:#334155;">
+              <strong>👤 Opprettet av:</strong> ${escHtml(data.olusturan || '—')}
+            </div>
+            <div style="font-size:14px;color:#334155;">
+              <strong>👥 Deltakere:</strong><br>
+              <div style="margin-top:8px;">${deltakereHtml}</div>
+            </div>
+            ${nesteMoteHtml}
+          </div>
 
-    '</table></td></tr></table></body></html>';
+          <div style="margin-top:28px;">
+            <div style="font-size:13px;font-weight:800;color:#2563EB;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">
+              Dine oppgaver
+            </div>
+            ${mineHtml}
+          </div>
+
+          <div style="margin-top:28px;">
+            <div style="font-size:13px;font-weight:800;color:#64748B;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">
+              Alle oppgaver i referatet
+            </div>
+            ${alleHtml}
+          </div>
+
+          <div style="margin-top:26px;text-align:center;">
+            <a href="${appUrl}"
+               style="display:inline-block;background:#2563EB;color:#FFFFFF;text-decoration:none;font-weight:700;font-size:15px;padding:13px 24px;border-radius:12px;">
+              Åpne Familiemøte
+            </a>
+          </div>
+
+          <div style="margin-top:24px;padding-top:18px;border-top:1px solid #E2E8F0;font-size:12px;line-height:1.6;color:#94A3B8;text-align:center;">
+            Denne e-posten ble sendt automatisk fra Familiemøte-systemet.
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+  </html>
+  `;
 }
 
 // ===== NYTT: Skriv e-poster til Firestore mail-koleksjon =====
