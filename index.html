@@ -331,6 +331,19 @@
     .task-form-row2 select { flex: 0 0 140px; }
     .task-form-row2 input { flex: 1; font-size: .825rem; }
 
+    /* Viderefort (devredilen oppgave) stilleri */
+    .task-form-item.viderefort-item {
+      border-color: var(--accent);
+      background: #fffbeb;
+    }
+    .viderefort-badge {
+      display: inline-flex; align-items: center; gap: .3rem;
+      background: var(--accent-bg); color: #92400E;
+      border-radius: 20px; padding: .18rem .65rem;
+      font-size: .72rem; font-weight: 700;
+      margin-bottom: .45rem;
+    }
+
     .pg-hdr { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 1.75rem; gap: 1rem; }
     .pg-hdr h2 { font-size: 2.25rem; line-height: 1; }
     .pg-hdr .count-pill {
@@ -748,6 +761,15 @@ const PASSORD = "flekken";
 const STD_DELTAKERE = ["Fikret", "Lise", "Elif"];
 const EXT_DELTAKERE = ["Pernille", "Çağatay"];
 
+// E-post adresser for deltakerne
+const PERSON_EPOST = {
+  "Fikret":   "fkrtkrt@hotmail.com",
+  "Lise":     "lise.kjolstad@gmail.com",
+  "Elif":     "4lifkrt2007@gmail.com",
+  "Çağatay":  "fallenlight983@gmail.com",
+  "Pernille": "pernille.tora@gmail.com"
+};
+
 const STANDARD_DAGSORDEN = [
   "Godkjenning av forrige referat",
   "Avtaler for kommende uke",
@@ -777,7 +799,7 @@ function doLogin() {
   const v = document.getElementById('pwd-input').value;
   const err = document.getElementById('pwd-err');
   if (v === PASSORD) {
-    sessionStorage.setItem('auth', '1');
+    localStorage.setItem('auth', '1');
     err.classList.remove('on');
     showApp();
   } else {
@@ -791,7 +813,7 @@ document.getElementById('pwd-input').addEventListener('keydown', e => {
 });
 
 function doLogout() {
-  sessionStorage.removeItem('auth');
+  localStorage.removeItem('auth');
   showScreen('login-screen');
   document.getElementById('pwd-input').value = '';
 }
@@ -953,6 +975,64 @@ function initNewForm() {
   STANDARD_DAGSORDEN.forEach(tekst => addGundem(tekst));
 
   document.getElementById('f-gorev-list').innerHTML = '';
+  loadForrigeGorevler();
+}
+
+// Henter ikke_startet/pagaar oppgaver fra siste referat og legger dem til i skjemaet
+function loadForrigeGorevler() {
+  if (!allData || !allData.length) return;
+  const forrige = allData[0]; // allData er sortert desc etter tarih
+  if (!forrige) return;
+  const gorevler = forrige.gorevler || [];
+  const aapne = gorevler.filter(function(g) {
+    return g.status === 'ikke_startet' || g.status === 'pagaar';
+  });
+  if (!aapne.length) return;
+  aapne.forEach(function(g) {
+    addGorevViderefort(g, forrige.id, forrige.konu, forrige.tarih);
+  });
+}
+
+// Legger til en viderefort oppgave i skjemaet
+function addGorevViderefort(g, referatId, referatKonu, referatTarih) {
+  const list = document.getElementById('f-gorev-list');
+  const alle = [...STD_DELTAKERE, ...EXT_DELTAKERE];
+  const div = document.createElement('div');
+  div.className = 'task-form-item viderefort-item';
+  div.dataset.viderefort = 'true';
+  div.dataset.viderefortFraReferatId = referatId || '';
+  div.dataset.viderefortFraKonu = referatKonu || '';
+  div.dataset.viderefortFraTarih = referatTarih || '';
+
+  const kisiOptions = alle.map(function(m) {
+    return '<option value="' + escAttr(m) + '"' + (g.kisi === m ? ' selected' : '') + '>' + esc(m) + '</option>';
+  }).join('');
+
+  const statusOptions = [
+    ['ikke_startet', '⬜ Ikke startet'],
+    ['pagaar',       '🔄 Pågår'],
+    ['fullfort',     '✅ Fullført'],
+    ['avbrutt',      '❌ Avbrutt']
+  ].map(function(s) {
+    return '<option value="' + s[0] + '"' + (g.status === s[0] ? ' selected' : '') + '>' + s[1] + '</option>';
+  }).join('');
+
+  const kildeTekst = referatKonu ? ': ' + esc(referatKonu) : '';
+
+  div.innerHTML =
+    '<div class="viderefort-badge">📋 Videreført fra forrige referat' + kildeTekst + '</div>' +
+    '<div class="task-form-row1">' +
+    '<select>' + kisiOptions + '</select>' +
+    '<input type="text" placeholder="Oppgavebeskrivelse..." value="' + escAttr(g.gorev || '') + '">' +
+    '<input type="date" value="' + escAttr(g.son_tarih || '') + '">' +
+    '<button type="button" class="rm-btn" onclick="this.closest(\'.task-form-item\').remove()">×</button>' +
+    '</div>' +
+    '<div class="task-form-row2">' +
+    '<select>' + statusOptions + '</select>' +
+    '<input type="text" placeholder="Notater til oppgaven (valgfritt)..." value="' + escAttr(g.notater || '') + '">' +
+    '</div>';
+
+  list.appendChild(div);
 }
 
 let _gundemCounter = 0;
@@ -1101,13 +1181,20 @@ async function saveReferat() {
 
   const gorevler = [...document.querySelectorAll('#f-gorev-list .task-form-item')].map(el => {
     const inputs = el.querySelectorAll('input, select');
-    return {
+    const base = {
       kisi:      inputs[0].value,
       gorev:     inputs[1].value.trim(),
       son_tarih: inputs[2].value,
       status:    inputs[3].value,
       notater:   inputs[4].value.trim()
     };
+    if (el.dataset.viderefort === 'true') {
+      base.viderefort             = true;
+      base.viderefortFraReferatId = el.dataset.viderefortFraReferatId || '';
+      base.viderefortFraKonu      = el.dataset.viderefortFraKonu || '';
+      base.viderefortFraTarih     = el.dataset.viderefortFraTarih || '';
+    }
+    return base;
   }).filter(g => g.gorev);
 
   const data = {
@@ -1124,8 +1211,17 @@ async function saveReferat() {
 
   loading(true);
   try {
-    await db.collection('referatlar').add(data);
+    const docRef = await db.collection('referatlar').add(data);
     toast('✓ Referat lagret!', 'ok');
+
+    // Send e-post til alle deltakere via Firestore mail-koleksjon
+    try {
+      await sendMailQueue(docRef.id, data);
+    } catch(mailErr) {
+      console.warn('Mail-kø feil:', mailErr);
+      // Stopper ikke flyten — referatet er allerede lagret
+    }
+
     showList();
   } catch(e) {
     toast('Feil: ' + e.message, 'err');
@@ -1213,6 +1309,7 @@ function renderDetail(r) {
             <span class="status-badge ${st.cls}">${st.ikon} ${st.label}</span>
             ${g.son_tarih ? `<span class="task-due">📅 ${fmtDate(g.son_tarih)}</span>` : ''}
           </div>
+          ${g.viderefort ? `<div style="margin:.35rem 0 0"><span style="background:var(--accent-bg);color:#92400E;border-radius:20px;padding:.15rem .55rem;font-size:.72rem;font-weight:700;">📋 Videreført${g.viderefortFraKonu ? ' fra: ' + esc(g.viderefortFraKonu) : ' fra forrige referat'}</span></div>` : ''}
           ${g.notater ? `<div class="task-notes-text">💬 ${esc(g.notater)}</div>` : ''}
 
           <div class="task-edit-box">
@@ -1333,6 +1430,110 @@ async function addComment(id) {
   }
 }
 
+// ===== E-post: Bygg HTML-innhold for e-post =====
+function buildEmailHtml(data, mottaker, mineGorevler, alleGorevler) {
+  const appUrl = 'https://fikretkurtunyeri-a11y.github.io/husmote/';
+
+  function statusMeta(status) {
+    const map = {
+      ikke_startet: { label: 'Ikke startet', emoji: '⬜', color: '#64748B', bg: '#F1F5F9' },
+      pagaar:       { label: 'Pågår',        emoji: '🔄', color: '#1D4ED8', bg: '#DBEAFE' },
+      fullfort:     { label: 'Fullført',     emoji: '✅', color: '#059669', bg: '#D1FAE5' },
+      avbrutt:      { label: 'Avbrutt',      emoji: '❌', color: '#DC2626', bg: '#FEE2E2' }
+    };
+    return map[status] || map.ikke_startet;
+  }
+
+  function escHtml(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function fmtShortDate(dateStr) {
+    if (!dateStr) return 'Ingen frist';
+    try {
+      return new Date(dateStr + 'T12:00:00').toLocaleDateString('nb-NO', { day:'numeric', month:'long', year:'numeric' });
+    } catch { return dateStr; }
+  }
+
+  function taskCard(g, isPersonal) {
+    const st = statusMeta(g.status);
+    const noteHtml = g.notater
+      ? `<div style="margin-top:8px;font-size:13px;color:#475569;"><strong>Notat:</strong> ${escHtml(g.notater)}</div>` : '';
+    const vfHtml = g.viderefort
+      ? `<div style="margin-top:8px;"><span style="background:#FEF3C7;color:#92400E;font-size:12px;font-weight:700;border-radius:999px;padding:4px 10px;">↺ Videreført${g.viderefortFraKonu ? ' fra ' + escHtml(g.viderefortFraKonu) : ''}</span></div>` : '';
+    const ownerHtml = isPersonal ? '' : `<div style="margin-bottom:8px;font-size:12px;color:#64748B;"><strong>Ansvarlig:</strong> ${escHtml(g.kisi || '—')}</div>`;
+    return `
+      <div style="background:${isPersonal ? '#FFFFFF' : '#F8FAFC'};border:1px solid #E2E8F0;border-radius:14px;padding:14px 16px;margin-bottom:12px;">
+        ${ownerHtml}
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap;">
+          <div style="flex:1;min-width:220px;font-size:15px;font-weight:700;color:#0F172A;">${escHtml(g.gorev || 'Uten navn')}</div>
+          <span style="background:${st.bg};color:${st.color};font-size:12px;font-weight:700;border-radius:999px;padding:5px 10px;white-space:nowrap;">${st.emoji} ${st.label}</span>
+        </div>
+        <div style="margin-top:10px;font-size:13px;color:#475569;"><strong>Frist:</strong> ${escHtml(fmtShortDate(g.son_tarih))}</div>
+        ${noteHtml}${vfHtml}
+      </div>`;
+  }
+
+  const mineHtml  = mineGorevler.length  ? mineGorevler.map(g => taskCard(g, true)).join('')  : '<div style="border:1px dashed #CBD5E1;border-radius:14px;padding:16px;color:#64748B;font-size:14px;">Du har ingen oppgaver i dette referatet.</div>';
+  const alleHtml  = alleGorevler.length  ? alleGorevler.map(g => taskCard(g, false)).join('') : '<div style="border:1px dashed #CBD5E1;border-radius:14px;padding:16px;color:#64748B;font-size:14px;">Ingen oppgaver registrert.</div>';
+  const nesteMoteHtml = data.sonraki_toplanti
+    ? `<div style="margin-top:14px;background:#FEF3C7;border:1px solid #FCD34D;border-radius:12px;padding:12px 14px;"><div style="font-size:12px;font-weight:700;color:#92400E;text-transform:uppercase;">Neste møte</div><div style="margin-top:4px;font-size:14px;font-weight:700;color:#78350F;">📅 ${escHtml(fmtShortDate(data.sonraki_toplanti))}</div></div>` : '';
+  const deltakereHtml = (data.katilimcilar || []).map(n =>
+    `<span style="background:#EFF6FF;color:#2563EB;font-size:12px;font-weight:700;border-radius:999px;padding:5px 10px;margin:0 6px 6px 0;display:inline-block;">${escHtml(n)}</span>`
+  ).join('') || '<span style="color:#64748B;">Ingen deltakere</span>';
+
+  return `<!DOCTYPE html><html lang="nb"><head><meta charset="UTF-8"/></head>
+  <body style="margin:0;padding:0;background:#F8FAFC;font-family:Segoe UI,Arial,sans-serif;color:#0F172A;">
+  <div style="width:100%;background:#F8FAFC;padding:24px 12px;">
+    <div style="max-width:680px;margin:0 auto;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:20px;overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#2D4A3E 0%,#1F362C 100%);padding:28px 24px;">
+        <div style="font-size:30px;">🏠</div>
+        <div style="margin-top:10px;font-size:26px;font-weight:800;color:#FFFFFF;">Familiemøte</div>
+        <div style="margin-top:6px;font-size:14px;color:rgba(255,255,255,.85);">Referater & beslutninger</div>
+      </div>
+      <div style="padding:24px;">
+        <div style="font-size:13px;font-weight:700;color:#2D4A3E;text-transform:uppercase;letter-spacing:.05em;">Nytt referat</div>
+        <h1 style="margin:10px 0 8px;font-size:28px;color:#0F172A;">${escHtml(data.konu || 'Uten tittel')}</h1>
+        <p style="margin:0 0 18px;font-size:15px;color:#475569;">Hei ${escHtml(mottaker)}. Et nytt familiemøtereferat er opprettet og sendt til deltakerne.</p>
+        <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:16px;padding:16px 18px;">
+          <div style="margin-bottom:8px;font-size:14px;color:#334155;"><strong>📅 Dato:</strong> ${escHtml(fmtShortDate(data.tarih))}</div>
+          <div style="margin-bottom:8px;font-size:14px;color:#334155;"><strong>👤 Opprettet av:</strong> ${escHtml(data.olusturan || '—')}</div>
+          <div style="font-size:14px;color:#334155;"><strong>👥 Deltakere:</strong><br><div style="margin-top:8px;">${deltakereHtml}</div></div>
+          ${nesteMoteHtml}
+        </div>
+        <div style="margin-top:28px;"><div style="font-size:13px;font-weight:800;color:#2D4A3E;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">Dine oppgaver</div>${mineHtml}</div>
+        <div style="margin-top:28px;"><div style="font-size:13px;font-weight:800;color:#64748B;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">Alle oppgaver i referatet</div>${alleHtml}</div>
+        <div style="margin-top:26px;text-align:center;"><a href="${appUrl}" style="display:inline-block;background:#2D4A3E;color:#FFFFFF;text-decoration:none;font-weight:700;font-size:15px;padding:13px 24px;border-radius:12px;">Åpne Familiemøte</a></div>
+        <div style="margin-top:24px;padding-top:18px;border-top:1px solid #E2E8F0;font-size:12px;color:#94A3B8;text-align:center;">Denne e-posten ble sendt automatisk fra Familiemøte-systemet.</div>
+      </div>
+    </div>
+  </div>
+  </body></html>`;
+}
+
+// ===== E-post: Skriv til Firestore mail-koleksjon =====
+async function sendMailQueue(referatId, data) {
+  const katilimcilar = data.katilimcilar || [];
+  const alleGorevler = data.gorevler || [];
+  for (let i = 0; i < katilimcilar.length; i++) {
+    const kisi  = katilimcilar[i];
+    const epost = PERSON_EPOST[kisi];
+    if (!epost) continue;
+    const mineGorevler = alleGorevler.filter(g => g.kisi === kisi);
+    const html = buildEmailHtml(data, kisi, mineGorevler, alleGorevler);
+    await db.collection('mail').add({
+      to:      epost,
+      message: {
+        subject: 'Familiemøte referat: ' + data.konu + ' — ' + fmtDate(data.tarih),
+        html:    html
+      }
+    });
+  }
+}
+// =====================================================
+
 async function deleteReferat(id) {
   if (!confirm('Er du sikker på at du vil slette dette referatet?')) return;
   loading(true);
@@ -1403,7 +1604,7 @@ function init() {
     alert('Firebase er ikke konfigurert ennå.');
     return;
   }
-  if (sessionStorage.getItem('auth') === '1') showApp();
+  if (localStorage.getItem('auth') === '1') showApp();
   else showScreen('login-screen');
 }
 
